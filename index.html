@@ -21,6 +21,11 @@
         <video id="webcam" autoplay playsinline muted class="w-full h-full object-cover"></video>
         <canvas id="canvas" class="hidden"></canvas>
 
+        <!-- Tombol Toggle Nyala/Mati Kamera -->
+        <button id="btnToggleCamera" onclick="toggleCamera()" type="button" class="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white text-xs px-3 py-1.5 rounded-full transition-all z-10">
+          📷 Matikan Kamera
+        </button>
+
         <div id="cameraStatusBox" class="absolute p-3 text-center w-full">
           <span id="cameraStatus" class="text-xs text-white bg-black/70 px-3 py-1.5 rounded-full block mb-2">
             Mengaktifkan kamera...
@@ -63,6 +68,10 @@
     const canvas = document.getElementById('canvas');
     const cameraStatus = document.getElementById('cameraStatus');
     const btnAllowCamera = document.getElementById('btnAllowCamera');
+    const btnToggleCamera = document.getElementById('btnToggleCamera');
+
+    // Menyimpan stream aktif supaya bisa dihentikan (track.stop()) saat kamera dimatikan manual
+    let cameraStream = null;
 
     window.onload = function () {
       initCamera();
@@ -75,14 +84,18 @@
         return;
       }
 
+      document.getElementById('cameraStatusBox').classList.remove('hidden');
       cameraStatus.innerText = "Mengaktifkan kamera...";
       btnAllowCamera.classList.add('hidden');
+      updateToggleButton('loading');
 
       navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false })
         .then(stream => {
+          cameraStream = stream;
           video.srcObject = stream;
           video.play();
           document.getElementById('cameraStatusBox').classList.add('hidden');
+          updateToggleButton('on');
         })
         .catch(err => {
           console.error("Camera error:", err);
@@ -98,11 +111,49 @@
           }
 
           btnAllowCamera.classList.remove('hidden');
+          updateToggleButton('off');
         });
     }
 
+    function stopCamera() {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+      }
+      video.srcObject = null;
+
+      document.getElementById('cameraStatusBox').classList.remove('hidden');
+      cameraStatus.innerText = "Kamera dimatikan";
+      btnAllowCamera.classList.add('hidden');
+      updateToggleButton('off');
+    }
+
+    // Dipanggil oleh tombol toggle di pojok kotak kamera
+    function toggleCamera() {
+      if (cameraStream) {
+        stopCamera();
+      } else {
+        initCamera();
+      }
+    }
+
+    // Dipanggil oleh tombol kuning "Klik Di Sini Untuk Aktifkan Kamera" saat izin ditolak
     function requestCameraAccess() {
       initCamera();
+    }
+
+    // Mengatur teks & tampilan tombol toggle sesuai kondisi kamera
+    function updateToggleButton(state) {
+      if (state === 'on') {
+        btnToggleCamera.innerText = '📷 Matikan Kamera';
+        btnToggleCamera.disabled = false;
+      } else if (state === 'off') {
+        btnToggleCamera.innerText = '📷 Nyalakan Kamera';
+        btnToggleCamera.disabled = false;
+      } else {
+        btnToggleCamera.innerText = '📷 Memuat...';
+        btnToggleCamera.disabled = true;
+      }
     }
 
     // Ganti google.script.run -> fetch GET biasa ke ?action=list
